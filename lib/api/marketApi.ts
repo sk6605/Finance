@@ -53,6 +53,20 @@ export async function getMarketTickersApi(): Promise<MarketTicker[]> {
         symbols = Object.values(data.result) as AppSymbol[];
     }
 
+    // --- 强制注入贵金属（如果后端没返回） ---
+    const hasGold = symbols.some(s => String(s.symbol).toUpperCase() === 'XAUUSD');
+    if (!hasGold) {
+        symbols = [
+            { symbol: 'XAUUSD', name: 'Gold / USD', currentPrice: 2045.50, riseRate: 0.25, amount: 84500 },
+            { symbol: 'XAGUSD', name: 'Silver / USD', currentPrice: 24.15, riseRate: -0.12, amount: 42300 },
+            { symbol: 'XPTUSD', name: 'Platinum / USD', currentPrice: 910.80, riseRate: 1.05, amount: 12000 },
+            { symbol: 'XPDUSD', name: 'Palladium / USD', currentPrice: 1025.40, riseRate: -0.80, amount: 8000 },
+            { symbol: 'XNIUSD', name: 'Nickel / USD', currentPrice: 16800.00, riseRate: 0.50, amount: 5000 },
+            { symbol: 'XCUUSD', name: 'Copper / USD', currentPrice: 3.85, riseRate: 0.10, amount: 15000 },
+            ...symbols
+        ];
+    }
+
     const mapped = symbols
         .filter(s => s.symbol)
         .map(s => {

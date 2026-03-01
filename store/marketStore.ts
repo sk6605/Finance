@@ -13,6 +13,8 @@ interface MarketState {
     tickers: Record<string, MarketTicker>;
     /** 当前选中的交易对（在交易页使用） */
     selectedSymbol: string;
+    /** 用户当前在 Trading 页面打开的交易对标签（至少包含 XAUUSD） */
+    activeTabs: string[];
     isLoading: boolean;
 
     // ── 操作 ──
@@ -20,14 +22,17 @@ interface MarketState {
     setTickers: (tickers: MarketTicker[]) => void;
     /** 更新单个交易对行情（WebSocket 推送时使用） */
     updateTicker: (ticker: MarketTicker) => void;
-    /** 切换当前选中的交易对 */
+    /** 切换当前选中的交易对，并自动加入到标签栏 */
     setSelectedSymbol: (symbol: string) => void;
+    /** 关闭一个交易对标签 */
+    removeTab: (symbol: string) => void;
     setLoading: (loading: boolean) => void;
 }
 
-export const useMarketStore = create<MarketState>((set) => ({
+export const useMarketStore = create<MarketState>((set, get) => ({
     tickers: {},
     selectedSymbol: 'XAUUSD',  // 默认选中黄金
+    activeTabs: ['XAUUSD'],    // 默认打开黄金
     isLoading: false,
 
     setTickers: (tickerList) => {
@@ -44,7 +49,26 @@ export const useMarketStore = create<MarketState>((set) => ({
             tickers: { ...state.tickers, [ticker.symbol]: ticker },
         })),
 
-    setSelectedSymbol: (symbol) => set({ selectedSymbol: symbol }),
+    setSelectedSymbol: (symbol) =>
+        set((state) => {
+            // 如果刚选的尚未在 tabs 里，加进去
+            const tabs = state.activeTabs.includes(symbol)
+                ? state.activeTabs
+                : [...state.activeTabs, symbol];
+            return { selectedSymbol: symbol, activeTabs: tabs };
+        }),
+
+    removeTab: (symbol) =>
+        set((state) => {
+            let newTabs = state.activeTabs.filter(t => t !== symbol);
+            // 不能让 tabs 为空，至少保留 XAUUSD
+            if (newTabs.length === 0) {
+                newTabs = ['XAUUSD'];
+            }
+            // 如果关掉的是当前选中的，切换到第一个
+            const newSelected = state.selectedSymbol === symbol ? newTabs[0] : state.selectedSymbol;
+            return { activeTabs: newTabs, selectedSymbol: newSelected };
+        }),
 
     setLoading: (loading) => set({ isLoading: loading }),
 }));

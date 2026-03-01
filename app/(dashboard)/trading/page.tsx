@@ -20,7 +20,6 @@ import { priceWS } from '@/lib/websocket/priceWebSocket';
 import { KlineCandle, MarketTicker, OptionOrder, OptionProduct } from '@/types';
 
 // 所有交易对配置
-const SYMBOLS = ['XAUUSD', 'XAGUSD', 'XPTUSD', 'XPDUSD', 'XNIUSD', 'XCUUSD'];
 const SYMBOL_COLOR: Record<string, string> = {
     XAUUSD: '#d4af37', XAGUSD: '#c0c0c0', XPTUSD: '#a8a9ad',
     XPDUSD: '#b0a090', XNIUSD: '#7a9ab0', XCUUSD: '#b87333',
@@ -37,7 +36,11 @@ type TradeTab = 'option' | 'contract';
 const LEVERAGE_OPTIONS = [1, 2, 3, 5, 10];
 
 export default function TradingPage() {
-    const { selectedSymbol, setSelectedSymbol, tickers, updateTicker } = useMarketStore();
+    const {
+        selectedSymbol, setSelectedSymbol,
+        tickers, updateTicker,
+        activeTabs, removeTab
+    } = useMarketStore();
     const { user } = useAuthStore();
 
     // ── 图表相关状态 ──
@@ -131,26 +134,44 @@ export default function TradingPage() {
 
     useEffect(() => { loadKlineData(); }, [loadKlineData]);
 
-    /* ── WebSocket 订阅实时价格（更新图表最新蜡烛 + ticker） ── */
+    /* ── 初始化时拉取全局行情 ── */
+    useEffect(() => {
+        import('@/lib/api/marketApi').then(({ getMarketTickersApi }) => {
+            getMarketTickersApi().then(data => {
+                const { setTickers } = useMarketStore.getState();
+                setTickers(data);
+            }).catch(e => console.error('Failed to prefetch tickers:', e));
+        });
+    }, []);
+
+    /* ── WebSocket 订阅实时价格（选中的交易对 + 所有打开的 tab） ── */
     useEffect(() => {
         priceWS.connect();
-        const handleTick = (ticker: MarketTicker) => {
-            updateTicker(ticker);
-            // 实时更新图表最后一根蜡烛
-            if (candleSeriesRef.current) {
-                const now = Math.floor(Date.now() / 1000);
-                (candleSeriesRef.current as { update: (d: unknown) => void }).update({
-                    time: now,
-                    open: ticker.price,
-                    high: ticker.high24h,
-                    low: ticker.low24h,
-                    close: ticker.price,
-                });
-            }
+
+        // 我们需要监听所有 activeTabs 的价格变化，同时如果是 selectedSymbol，还要更新图表
+        const callbacks: Array<{ symbol: string, cb: (t: MarketTicker) => void }> = activeTabs.map(sym => {
+            const handleTick = (ticker: MarketTicker) => {
+                updateTicker(ticker);
+                // 只有当前选中的交易对才更新 K 线图表最后一根蜡烛
+                if (sym === selectedSymbol && candleSeriesRef.current) {
+                    const now = Math.floor(Date.now() / 1000);
+                    (candleSeriesRef.current as { update: (d: unknown) => void }).update({
+                        time: now,
+                        open: ticker.price,
+                        high: ticker.high24h,
+                        low: ticker.low24h,
+                        close: ticker.price,
+                    });
+                }
+            };
+            priceWS.subscribe(sym, handleTick);
+            return { symbol: sym, cb: handleTick };
+        });
+
+        return () => {
+            callbacks.forEach(({ symbol, cb }) => priceWS.unsubscribe(symbol, cb));
         };
-        priceWS.subscribe(selectedSymbol, handleTick);
-        return () => priceWS.unsubscribe(selectedSymbol, handleTick);
-    }, [selectedSymbol, updateTicker]);
+    }, [selectedSymbol, activeTabs, updateTicker]);
 
     /* ── 加载期权产品列表 + 活跃订单 ── */
     useEffect(() => {
@@ -200,28 +221,65 @@ export default function TradingPage() {
             <div style={{ padding: '20px 28px' }}>
                 {/* ── 交易对选择器（横向滚动 Tabs） ── */}
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', overflowX: 'auto', paddingBottom: '4px' }}>
-                    {SYMBOLS.map(sym => {
+                    {activeTabs.map(sym => {
                         const ticker = tickers[sym];
                         const isActive = sym === selectedSymbol;
                         const isUp = (ticker?.changePercent24h ?? 0) >= 0;
+
+                        // 计算渐变背景色（避免部分没有 SYMBOL_COLOR 的资产报错）
+                        const getSymbolColor = (s: string) => {
+                            if (SYMBOL_COLOR[s]) return SYMBOL_COLOR[s];
+                            const colors = ['#7a9ab0', '#b87333', '#1e90ff', '#32cd32', '#9370db', '#f08080'];
+                            let hash = 0;
+                            for (let i = 0; i < s.length; i++) hash = s.charCodeAt(i) + ((hash << 5) - hash);
+                            return colors[Math.abs(hash) % colors.length];
+                        };
+                        const color = getSymbolColor(sym);
+
                         return (
-                            <button
+                            <div
                                 key={sym}
-                                onClick={() => setSelectedSymbol(sym)}
                                 style={{
                                     padding: '10px 16px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                                     background: isActive ? 'var(--color-bg-hover)' : 'var(--color-bg-card)',
-                                    border: `1px solid ${isActive ? SYMBOL_COLOR[sym] : 'var(--color-border)'}`,
+                                    border: `1px solid ${isActive ? color : 'var(--color-border)'}`,
                                     color: 'var(--color-text-primary)', whiteSpace: 'nowrap',
-                                    display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px',
+                                    display: 'flex', alignItems: 'center', gap: '8px',
                                     minWidth: '110px',
+                                    position: 'relative',
                                 }}
+                                onClick={() => setSelectedSymbol(sym)}
                             >
-                                <span style={{ fontWeight: 700, fontSize: '13px', color: isActive ? SYMBOL_COLOR[sym] : undefined }}>{sym}</span>
-                                <span style={{ fontSize: '12px', fontFamily: 'monospace', color: isUp ? 'var(--color-green)' : 'var(--color-red)' }}>
-                                    {ticker ? `${ticker.price.toFixed(2)} ${isUp ? '▲' : '▼'}${Math.abs(ticker.changePercent24h).toFixed(2)}%` : '— —'}
-                                </span>
-                            </button>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px', flex: 1 }}>
+                                    <span style={{ fontWeight: 700, fontSize: '13px', color: isActive ? color : undefined }}>{sym}</span>
+                                    <span style={{ fontSize: '12px', fontFamily: 'monospace', color: isUp ? 'var(--color-green)' : 'var(--color-red)' }}>
+                                        {ticker ? `${ticker.price.toFixed(2)} ${isUp ? '▲' : '▼'}${Math.abs(ticker.changePercent24h).toFixed(2)}%` : '— —'}
+                                    </span>
+                                </div>
+                                {/* 删除（X）按钮 */}
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation(); // 阻止触发选中
+                                        removeTab(sym);
+                                    }}
+                                    style={{
+                                        background: 'transparent',
+                                        border: 'none',
+                                        color: 'var(--color-text-secondary)',
+                                        cursor: 'pointer',
+                                        padding: '4px',
+                                        fontSize: '14px',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        borderRadius: '50%',
+                                        lineHeight: 1,
+                                    }}
+                                    onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-red)')}
+                                    onMouseLeave={e => (e.currentTarget.style.color = 'var(--color-text-secondary)')}
+                                    title="Remove from trading list"
+                                >
+                                    ×
+                                </button>
+                            </div>
                         );
                     })}
                 </div>
