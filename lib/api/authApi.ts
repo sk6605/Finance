@@ -72,7 +72,9 @@ export async function registerApi(data: {
     smscode: string;     // 邮箱验证码
     inviteCode?: string;
 }): Promise<{ token: string; user: User }> {
-    const encryptedBody = await encryptPayload(data);
+    // 真实 API 要求 username 字段，直接用 email 作为 username
+    const payload = { ...data, username: data.email };
+    const encryptedBody = await encryptPayload(payload);
     const res = await apiClient.post<{ code: number; result: LoginResult }>(
         '/api/app/register',
         encryptedBody
