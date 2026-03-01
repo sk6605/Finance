@@ -69,7 +69,7 @@ export async function sendEmailOtpApi(email: string): Promise<void> {
 export async function registerApi(data: {
     email: string;
     password: string;
-    smscode: string;     // 邮箱验证码
+    captcha: string;     // 邮箱验证码（API 字段名为 captcha，非 smscode）
     inviteCode?: string;
 }): Promise<{ token: string; user: User }> {
     // 真实 API 要求 username 字段，直接用 email 作为 username

@@ -76,7 +76,7 @@ export default function LoginPage() {
         if (password.length < 6) return setError('Password must be at least 6 characters');
         setLoading(true);
         try {
-            const { user, token } = await registerApi({ email, password, smscode: otp, inviteCode });
+            const { user, token } = await registerApi({ email, password, captcha: otp, inviteCode });
             setAuth(user, token);
             router.replace('/market');
         } catch (err: unknown) {
