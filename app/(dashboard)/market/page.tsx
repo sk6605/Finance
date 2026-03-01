@@ -73,16 +73,24 @@ export default function MarketPage() {
         router.push('/trading');
     }, [router, setSelectedSymbol]);
 
-    // 将 tickers Map 转为数组，按固定顺序显示
-    const tickerList = Object.keys(SYMBOL_META)
-        .map(symbol => tickers[symbol])
-        .filter(Boolean) as MarketTicker[];
+    // 计算渐变背景色
+    const getSymbolColor = (symbol: string) => {
+        if (SYMBOL_META[symbol]) return SYMBOL_META[symbol].color;
+        // 伪随机颜色
+        const colors = ['#7a9ab0', '#b87333', '#1e90ff', '#32cd32', '#9370db', '#f08080'];
+        let hash = 0;
+        for (let i = 0; i < symbol.length; i++) hash = symbol.charCodeAt(i) + ((hash << 5) - hash);
+        return colors[Math.abs(hash) % colors.length];
+    };
+
+    // 获取数据列表（直接使用 API 返回的数据，不再只过滤 SYMBOL_META）
+    const tickerList = Object.values(tickers).filter(Boolean) as MarketTicker[];
 
     return (
         <div>
             <TopHeader
                 title="Market Overview"
-                subtitle="Live precious metals prices — click any row to trade"
+                subtitle="Live market prices — click any row to trade"
             />
 
             <div style={{ padding: '28px' }}>
@@ -128,7 +136,8 @@ export default function MarketPage() {
 
                     {/* 数据行 */}
                     {tickerList.map((ticker, index) => {
-                        const meta = SYMBOL_META[ticker.symbol];
+                        const metaName = SYMBOL_META[ticker.symbol]?.name || ticker.symbol;
+                        const metaColor = getSymbolColor(ticker.symbol);
                         const isUp = ticker.changePercent24h >= 0;
 
                         return (
@@ -151,17 +160,17 @@ export default function MarketPage() {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                     <div style={{
                                         width: 40, height: 40,
-                                        background: meta.color + '20',
-                                        border: `1px solid ${meta.color}40`,
+                                        background: metaColor + '20',
+                                        border: `1px solid ${metaColor}40`,
                                         borderRadius: '50%',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        fontSize: '10px', fontWeight: 700, color: meta.color,
+                                        fontSize: '10px', fontWeight: 700, color: metaColor,
                                     }}>
                                         {ticker.symbol.slice(0, 3)}
                                     </div>
                                     <div>
                                         <div style={{ fontWeight: 600, fontSize: '15px' }}>{ticker.symbol}</div>
-                                        <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>{meta.name}</div>
+                                        <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>{metaName}</div>
                                     </div>
                                 </div>
 

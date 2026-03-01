@@ -49,6 +49,23 @@ export const useAuthStore = create<AuthState>()(
         {
             name: 'xau_user_info', // localStorage key（持久化存储）
             partialize: (state) => ({ user: state.user, token: state.token, isLoggedIn: state.isLoggedIn }),
+            // Hydration 处理
+            skipHydration: true,
         }
     )
 );
+
+// 安全的客户端 Hydration Hook
+import { useState, useEffect } from 'react';
+
+export const useHydratedAuth = () => {
+    const [hasHydrated, setHasHydrated] = useState(false);
+    const authState = useAuthStore();
+
+    useEffect(() => {
+        useAuthStore.persist.rehydrate();
+        setHasHydrated(true);
+    }, []);
+
+    return { ...authState, hasHydrated };
+};

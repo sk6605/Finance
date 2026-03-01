@@ -11,7 +11,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
-import { useAuthStore } from '@/store/authStore';
+import { useHydratedAuth } from '@/store/authStore';
 
 export default function DashboardLayout({
     children,
@@ -19,17 +19,18 @@ export default function DashboardLayout({
     children: React.ReactNode;
 }) {
     const router = useRouter();
-    const { isLoggedIn } = useAuthStore();
+    const { isLoggedIn, hasHydrated } = useHydratedAuth();
 
     /* ── 登录状态守卫：未登录则重定向到登录页 ── */
     useEffect(() => {
-        if (!isLoggedIn) {
+        // 只有当客户端 Hydration 完成后，才进行判断
+        if (hasHydrated && !isLoggedIn) {
             router.replace('/login');
         }
-    }, [isLoggedIn, router]);
+    }, [isLoggedIn, hasHydrated, router]);
 
-    // 未登录时不渲染内容（防止闪烁）
-    if (!isLoggedIn) return null;
+    // 未 Hydration 或未登录时不渲染内容（防止闪烁）
+    if (!hasHydrated || !isLoggedIn) return null;
 
     return (
         <div style={{ display: 'flex', minHeight: '100vh' }}>
