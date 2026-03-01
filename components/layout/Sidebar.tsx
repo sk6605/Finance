@@ -10,11 +10,12 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { logoutApi } from '@/lib/api/authApi';
+import { useTranslation } from '@/store/i18nStore';
 
 // ── 导航菜单项配置 ──
 const NAV_ITEMS = [
     {
-        label: 'Market',          // 首页市场行情
+        labelKey: 'Menu_Home',          // 首页市场行情
         href: '/market',
         icon: (active: boolean) => (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active ? '#d4af37' : '#8899aa'} strokeWidth="2">
@@ -23,7 +24,7 @@ const NAV_ITEMS = [
         ),
     },
     {
-        label: 'Trading',         // 期权/合约交易
+        labelKey: 'Menu_Trade',         // 期权/合约交易
         href: '/trading',
         icon: (active: boolean) => (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active ? '#d4af37' : '#8899aa'} strokeWidth="2">
@@ -35,7 +36,7 @@ const NAV_ITEMS = [
         ),
     },
     {
-        label: 'Mining',          // 黄金存储/挖矿计划
+        labelKey: 'Menu_Mining',          // 黄金存储/挖矿计划
         href: '/mining',
         icon: (active: boolean) => (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active ? '#d4af37' : '#8899aa'} strokeWidth="2">
@@ -45,7 +46,7 @@ const NAV_ITEMS = [
         ),
     },
     {
-        label: 'Assets',          // 资产 & 钱包
+        labelKey: 'Menu_Assets',          // 资产 & 钱包
         href: '/assets',
         icon: (active: boolean) => (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active ? '#d4af37' : '#8899aa'} strokeWidth="2">
@@ -56,7 +57,7 @@ const NAV_ITEMS = [
         ),
     },
     {
-        label: 'Profile',         // 个人资料 & 设置
+        labelKey: 'Menu_Me',         // 个人资料 & 设置
         href: '/profile',
         icon: (active: boolean) => (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active ? '#d4af37' : '#8899aa'} strokeWidth="2">
@@ -71,13 +72,15 @@ export default function Sidebar() {
     const pathname = usePathname();
     const router = useRouter();
     const { user, clearAuth } = useAuthStore();
+    const { t } = useTranslation();
 
     /* ── 退出登录处理 ── */
     const handleLogout = async () => {
+        if (!confirm(t('LogoutConfirmText'))) return;
         try {
             await logoutApi();
         } catch {
-            // 即使 API 失败也继续清除本地状态
+            // 继续清除
         } finally {
             clearAuth();
             router.push('/login');
@@ -145,7 +148,7 @@ export default function Sidebar() {
                             }}
                         >
                             {item.icon(isActive)}
-                            {item.label}
+                            {t(item.labelKey as any)}
                         </Link>
                     );
                 })}
@@ -168,7 +171,7 @@ export default function Sidebar() {
                         {/* KYC 状态角标 */}
                         {user.kycStatus !== 'verified' && (
                             <span className="badge badge-orange" style={{ marginTop: '6px', fontSize: '10px' }}>
-                                KYC Pending
+                                {t('Unverified')}
                             </span>
                         )}
                     </div>
@@ -196,7 +199,7 @@ export default function Sidebar() {
                         (e.target as HTMLButtonElement).style.color = 'var(--color-text-secondary)';
                     }}
                 >
-                    Logout
+                    {t('Logout')}
                 </button>
             </div>
         </aside>

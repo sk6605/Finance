@@ -16,10 +16,12 @@ import { useAuthStore } from '@/store/authStore';
 import { changePasswordApi } from '@/lib/api/userApi';
 import { useRouter } from 'next/navigation';
 import { logoutApi } from '@/lib/api/authApi';
+import { useTranslation, LanguageCode } from '@/store/i18nStore';
 
 export default function ProfilePage() {
     const { user, clearAuth } = useAuthStore();
     const router = useRouter();
+    const { t, lang, setLang } = useTranslation();
 
     // 修改密码弹窗
     const [showChangePwd, setShowChangePwd] = useState(false);
@@ -70,6 +72,7 @@ export default function ProfilePage() {
 
     /* ── 退出登录 ── */
     const handleLogout = async () => {
+        if (!confirm(t('LogoutConfirmText'))) return;
         try { await logoutApi(); } catch { }
         clearAuth();
         router.push('/login');
@@ -77,15 +80,15 @@ export default function ProfilePage() {
 
     // KYC 状态对应的显示配置
     const kycConfig = {
-        unverified: { label: 'Not Verified', class: 'badge-orange', hint: 'Complete KYC to unlock full features' },
+        unverified: { label: t('Unverified'), class: 'badge-orange', hint: 'Complete KYC to unlock full features' },
         pending: { label: 'Under Review', class: 'badge-gold', hint: 'KYC is being reviewed' },
-        verified: { label: 'Verified', class: 'badge-green', hint: 'Your identity is verified' },
+        verified: { label: t('Verified'), class: 'badge-green', hint: 'Your identity is verified' },
     };
     const kyc = kycConfig[user?.kycStatus || 'unverified'];
 
     return (
         <div>
-            <TopHeader title="Profile" subtitle="Account settings and security" />
+            <TopHeader title={t('Profile')} subtitle="Account settings and security" />
 
             <div style={{ padding: '28px', display: 'grid', gridTemplateColumns: '1fr 360px', gap: '24px' }}>
                 {/* ══ 左列：用户信息 + 安全设置 ══ */}
@@ -199,19 +202,25 @@ export default function ProfilePage() {
 
                     {/* 偏好设置卡片 */}
                     <div className="card" style={{ marginBottom: '16px' }}>
-                        <div style={{ fontWeight: 600, marginBottom: '14px' }}>Preferences</div>
+                        <div style={{ fontWeight: 600, marginBottom: '14px' }}>{t('Settings')}</div>
                         {/* 语言选择 */}
                         <div style={{ marginBottom: '10px' }}>
-                            <label style={{ fontSize: '13px', color: 'var(--color-text-secondary)', display: 'block', marginBottom: '6px' }}>Language</label>
-                            <select className="input-field">
+                            <label style={{ fontSize: '13px', color: 'var(--color-text-secondary)', display: 'block', marginBottom: '6px' }}>
+                                {t('LanguageSetting')}
+                            </label>
+                            <select
+                                className="input-field"
+                                value={lang}
+                                onChange={(e) => setLang(e.target.value as LanguageCode)}
+                            >
                                 <option value="en">English</option>
-                                <option value="zh">中文</option>
-                                <option value="ar">العربية</option>
+                                <option value="zhCN">简体中文</option>
+                                <option value="zhTW">繁體中文</option>
                             </select>
                         </div>
                         {/* 客服 */}
                         <button className="btn-outline-gold" style={{ width: '100%', marginTop: '8px', padding: '10px' }}>
-                            Customer Service
+                            {t('CustomerService')}
                         </button>
                     </div>
 
@@ -227,7 +236,7 @@ export default function ProfilePage() {
                             transition: 'background 0.2s',
                         }}
                     >
-                        Logout
+                        {t('Logout')}
                     </button>
                 </div>
             </div>

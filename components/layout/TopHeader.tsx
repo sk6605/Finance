@@ -6,14 +6,22 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslation, LanguageCode } from '@/store/i18nStore';
 
 interface TopHeaderProps {
     title: string;                  // 当前页面标题
     subtitle?: string;              // 页面副标题（可选）
 }
 
+const LANG_LABEL_MAP: Record<LanguageCode, string> = {
+    en: 'English',
+    zhCN: '简体中文',
+    zhTW: '繁體中文',
+};
+
 export default function TopHeader({ title, subtitle }: TopHeaderProps) {
     const [showLangMenu, setShowLangMenu] = useState(false);
+    const { t, lang, setLang } = useTranslation();
 
     return (
         <header
@@ -54,7 +62,7 @@ export default function TopHeader({ title, subtitle }: TopHeaderProps) {
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         cursor: 'pointer', position: 'relative',
                     }}
-                    title="Notifications"
+                    title={t('Notifications')}
                 >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-secondary)" strokeWidth="2">
                         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -81,7 +89,7 @@ export default function TopHeader({ title, subtitle }: TopHeaderProps) {
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             cursor: 'pointer',
                         }}
-                        title="Language"
+                        title={t('Language')}
                     >
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-secondary)" strokeWidth="2">
                             <circle cx="12" cy="12" r="10" />
@@ -100,19 +108,23 @@ export default function TopHeader({ title, subtitle }: TopHeaderProps) {
                             boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
                             zIndex: 200,
                         }}>
-                            {['English', '中文', 'العربية'].map((lang) => (
+                            {(Object.keys(LANG_LABEL_MAP) as LanguageCode[]).map((key) => (
                                 <button
-                                    key={lang}
-                                    onClick={() => setShowLangMenu(false)}
+                                    key={key}
+                                    onClick={() => {
+                                        setLang(key);
+                                        setShowLangMenu(false);
+                                    }}
                                     style={{
                                         display: 'block', width: '100%',
                                         padding: '10px 16px', textAlign: 'left',
-                                        background: 'transparent',
+                                        background: lang === key ? 'var(--color-bg-hover)' : 'transparent',
                                         border: 'none', cursor: 'pointer',
-                                        color: 'var(--color-text-primary)', fontSize: '13px',
+                                        color: lang === key ? 'var(--color-gold)' : 'var(--color-text-primary)',
+                                        fontSize: '13px', fontWeight: lang === key ? 600 : 400,
                                     }}
                                 >
-                                    {lang}
+                                    {LANG_LABEL_MAP[key]}
                                 </button>
                             ))}
                         </div>
@@ -129,7 +141,7 @@ export default function TopHeader({ title, subtitle }: TopHeaderProps) {
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         cursor: 'pointer',
                     }}
-                    title="Customer Service"
+                    title={t('CustomerService')}
                 >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-secondary)" strokeWidth="2">
                         <path d="M3 18v-6a9 9 0 0 1 18 0v6" />

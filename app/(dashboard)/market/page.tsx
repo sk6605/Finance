@@ -16,6 +16,7 @@ import { getMarketTickersApi } from '@/lib/api/marketApi';
 import { priceWS } from '@/lib/websocket/priceWebSocket';
 import { useMarketStore } from '@/store/marketStore';
 import { MarketTicker } from '@/types';
+import { useTranslation } from '@/store/i18nStore';
 
 // 所有交易对的显示名称和图标颜色映射
 const SYMBOL_META: Record<string, { name: string; color: string }> = {
@@ -29,43 +30,12 @@ const SYMBOL_META: Record<string, { name: string; color: string }> = {
 
 export default function MarketPage() {
     const router = useRouter();
-    const { tickers, setTickers, updateTicker, setSelectedSymbol, setLoading, isLoading } = useMarketStore();
+    const { tickers, setSelectedSymbol, isLoading } = useMarketStore();
     const [error, setError] = useState<string | null>(null);
+    const { t } = useTranslation();
 
-    /* ── 首次加载：从 API 拉取所有行情 ── */
-    useEffect(() => {
-        const fetchTickers = async () => {
-            setLoading(true);
-            try {
-                const data = await getMarketTickersApi();
-                setTickers(data);
-            } catch (err) {
-                setError('Failed to load market data');
-                console.error('[MarketPage] 加载行情失败:', err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchTickers();
-    }, [setTickers, setLoading]);
-
-    /* ── WebSocket：订阅所有交易对的实时价格推送 ── */
-    useEffect(() => {
-        priceWS.connect();
-        const symbols = Object.keys(SYMBOL_META);
-
-        // 为每个交易对注册价格更新回调
-        const callbacks: Array<{ symbol: string; cb: (t: MarketTicker) => void }> = symbols.map(symbol => {
-            const cb = (ticker: MarketTicker) => updateTicker(ticker);
-            priceWS.subscribe(symbol, cb);
-            return { symbol, cb };
-        });
-
-        // 组件卸载时取消所有订阅
-        return () => {
-            callbacks.forEach(({ symbol, cb }) => priceWS.unsubscribe(symbol, cb));
-        };
-    }, [updateTicker]);
+    // 市场数据现在由 layout 中的 GlobalMarketUpdater 统一通过 WebSocket 获取并推入 Zustand store。
+    // 本页面只需被动读取 store 数据即可，不需要维护自己的 WebSocket 订阅。
 
     /* ── 点击行：切换交易对并跳转交易页 ── */
     const handleRowClick = useCallback((symbol: string) => {
@@ -89,8 +59,8 @@ export default function MarketPage() {
     return (
         <div>
             <TopHeader
-                title="Market Overview"
-                subtitle="Live market prices — click any row to trade"
+                title={t('MarketOverview')}
+                subtitle={t('LiveMarketSub')}
             />
 
             <div style={{ padding: '28px' }}>
@@ -120,17 +90,17 @@ export default function MarketPage() {
                         textTransform: 'uppercase',
                         letterSpacing: '0.5px',
                     }}>
-                        <span>Asset</span>
-                        <span style={{ textAlign: 'right' }}>Price (USD)</span>
-                        <span style={{ textAlign: 'right' }}>24H Change</span>
-                        <span style={{ textAlign: 'right' }}>24H Volume</span>
-                        <span style={{ textAlign: 'right' }}>Action</span>
+                        <span>{t('Asset')}</span>
+                        <span style={{ textAlign: 'right' }}>{t('PriceUSD')}</span>
+                        <span style={{ textAlign: 'right' }}>{t('Change24H')}</span>
+                        <span style={{ textAlign: 'right' }}>{t('Volume24H')}</span>
+                        <span style={{ textAlign: 'right' }}>{t('Action')}</span>
                     </div>
 
                     {/* 加载中占位 */}
                     {isLoading && (
                         <div style={{ padding: '40px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-                            Loading market data...
+                            {t('LoadingMarket')}
                         </div>
                     )}
 
@@ -203,7 +173,7 @@ export default function MarketPage() {
                                             handleRowClick(ticker.symbol);
                                         }}
                                     >
-                                        Trade
+                                        {t('BtnTrade')}
                                     </button>
                                 </div>
                             </div>
@@ -213,7 +183,7 @@ export default function MarketPage() {
                     {/* 无数据占位 */}
                     {!isLoading && tickerList.length === 0 && !error && (
                         <div style={{ padding: '40px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-                            No market data available
+                            {t('NoMarketData')}
                         </div>
                     )}
                 </div>

@@ -12,6 +12,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import { useHydratedAuth } from '@/store/authStore';
+import GlobalMarketUpdater from '@/components/trading/GlobalMarketUpdater';
 
 export default function DashboardLayout({
     children,
@@ -34,6 +35,9 @@ export default function DashboardLayout({
 
     return (
         <div style={{ display: 'flex', minHeight: '100vh' }}>
+            {/* 全局实时行情引擎，负责在后台不断同步价格 */}
+            <GlobalMarketUpdater />
+
             {/* 固定左侧导航栏 */}
             <Sidebar />
 
