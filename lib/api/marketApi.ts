@@ -77,13 +77,13 @@ export async function getTickerApi(symbol: string): Promise<MarketTicker> {
         '/api/trade/appSymbol/price',
         { params: { symbol } }
     );
-    const s = res.data.result;
+    const s = res.data.result || {};
     return {
-        symbol: s.symbol,
-        price: Number(s.price) || 0,
-        change24h: Number(s.change) || 0,
-        changePercent24h: Number(s.changePercent) || 0,
-        volume24h: Number(s.volume) || 0,
+        symbol: String(s.symbol || symbol),
+        price: Number(s.currentPrice ?? s.price) || 0,
+        change24h: Number(s.rise ?? s.change) || 0,
+        changePercent24h: Number(s.riseRate ?? s.changePercent) || 0,
+        volume24h: Number(s.amount ?? s.volume) || 0,
         high24h: Number(s.high) || 0,
         low24h: Number(s.low) || 0,
     };
