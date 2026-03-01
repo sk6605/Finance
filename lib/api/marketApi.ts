@@ -10,16 +10,29 @@
 import apiClient from './apiClient';
 import { MarketTicker } from '@/types';
 
-/* ── 真实 API 的交易对格式 ── */
+/* ── 真实 API 的交易对格式（兼容多种字段名） ── */
+// 真实 API 返回: currentPrice / rise / riseRate / amount / high / low / symbol
+// 之前错误假设: price / change / changePercent / volume
 interface AppSymbol {
-    id: string;
-    symbol: string;
-    price: number;
-    change: number;
-    changePercent: number;
-    volume: number;
-    high: number;
-    low: number;
+    id?: string;
+    symbol?: string;
+    name?: string;
+    // 价格字段（两套名字都兼容）
+    currentPrice?: number;
+    price?: number;
+    // 涨跌额
+    rise?: number;
+    change?: number;
+    // 涨跌幅
+    riseRate?: number;
+    changePercent?: number;
+    // 成交量
+    amount?: number;
+    volume?: number;
+    high?: number;
+    low?: number;
+    // 其他可能的字段
+    [key: string]: unknown;
 }
 
 export async function getMarketTickersApi(): Promise<MarketTicker[]> {
@@ -40,15 +53,21 @@ export async function getMarketTickersApi(): Promise<MarketTicker[]> {
         symbols = Object.values(data.result) as AppSymbol[];
     }
 
-    return symbols.map(s => ({
-        symbol: s.symbol || '',
-        price: Number(s.price) || 0,
-        change24h: Number(s.change) || 0,
-        changePercent24h: Number(s.changePercent) || 0,
-        volume24h: Number(s.volume) || 0,
-        high24h: Number(s.high) || 0,
-        low24h: Number(s.low) || 0,
-    })).filter(s => s.symbol);
+    return symbols
+        .filter(s => s.symbol)         // 必须有 symbol 名称
+        .map(s => ({
+            symbol: String(s.symbol),
+            // 兼容 currentPrice 或 price
+            price: Number(s.currentPrice ?? s.price) || 0,
+            // 兼容 rise 或 change
+            change24h: Number(s.rise ?? s.change) || 0,
+            // 兼容 riseRate 或 changePercent
+            changePercent24h: Number(s.riseRate ?? s.changePercent) || 0,
+            // 兼容 amount 或 volume
+            volume24h: Number(s.amount ?? s.volume) || 0,
+            high24h: Number(s.high) || 0,
+            low24h: Number(s.low) || 0,
+        }));
 }
 
 

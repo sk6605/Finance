@@ -19,11 +19,23 @@ export async function getMiningProductsApi(params = {}): Promise<MiningProduct[]
         { params: { pageNo: 1, pageSize: 50, ...params } }
     );
     const data = res.data;
-    if (Array.isArray(data)) return data;
-    if (Array.isArray(data?.result)) return data.result;
-    if (Array.isArray(data?.result?.records)) return data.result.records;
-    if (data?.result && typeof data.result === 'object') return Object.values(data.result) as MiningProduct[];
-    return [];
+
+    let rawList: any[] = [];
+    if (Array.isArray(data)) rawList = data;
+    else if (Array.isArray(data?.result)) rawList = data.result;
+    else if (Array.isArray(data?.result?.records)) rawList = data.result.records;
+    else if (data?.result && typeof data.result === 'object') rawList = Object.values(data.result);
+
+    // 映射真实 API 字段到前端接口
+    return rawList.map(item => ({
+        id: String(item.id || ''),
+        name: String(item.name || item.title || ''),
+        dailyRate: Number(item.cycleIncomeRateMax ?? item.dailyRate) || 0,
+        period: Number(item.cycle ?? item.period) || 0,
+        minAmount: Number(item.minLimit ?? item.minAmount) || 0,
+        maxAmount: Number(item.maxLimit ?? item.maxAmount) || 0,
+        description: item.description || ''
+    }));
 }
 
 /* ── 购买/订阅挖矿计划（debit 直接扣余额，加密 POST） ── */
