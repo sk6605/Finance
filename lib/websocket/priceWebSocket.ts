@@ -1,141 +1,128 @@
-/* ============================================================
-   lib/websocket/priceWebSocket.ts — 实时价格 WebSocket 客户端
-   功能：连接平台 WebSocket，订阅交易对价格推送
-   - 支持订阅/取消订阅多个交易对
-   - 自动重连（最多 3 次，避免无限重连）
-   - 本地开发环境下跳过连接（服务器 CORS 不允许 localhost）
-   ============================================================ */
-
 import { MarketTicker } from '@/types';
-import { getMarketTickersApi } from '../api/marketApi';
 
-// WebSocket 连接地址（基于 valorexinthium.com）
-const WS_URL = 'wss://valorexinthium.com/ws';
-
-// 最大自动重连次数（避免在 CORS 拒绝时无限循环报错）
-const MAX_RECONNECT_ATTEMPTS = 3;
+// Gate.io WebSocket 实时全市场行情
+const WS_URL = 'wss://api.gateio.ws/ws/v4/';
 
 /** 价格更新回调类型 */
 type PriceUpdateCallback = (ticker: MarketTicker) => void;
+
+// 添加映射表：内部 Symbol -> Gate.io Symbol
+const SYMBOL_TO_GATE: Record<string, string> = {
+    'XAUUSD': 'PAXG_USDT',   // PAXG 锚定实体黄金
+    'XAGUSD': 'BTC_USDT',    // 暂用 BTC 模拟活跃白银以做展示
+    'XPTUSD': 'ETH_USDT',    // 暂用 ETH 模拟铂金
+    'XPDUSD': 'BNB_USDT',    // 暂用 BNB 模拟钯金
+    'XNIUSD': 'SOL_USDT',    // 暂用 SOL 模拟镍
+    'XCUUSD': 'XRP_USDT',    // 暂用 XRP 模拟铜
+};
+
+// 反向映射表：Gate Symbol -> 内部 Symbol 数组 (可能多个内部符映射到同一个符)
+const GATE_TO_SYMBOL: Record<string, string[]> = {};
+Object.entries(SYMBOL_TO_GATE).forEach(([sym, gate]) => {
+    if (!GATE_TO_SYMBOL[gate]) GATE_TO_SYMBOL[gate] = [];
+    GATE_TO_SYMBOL[gate].push(sym);
+});
 
 class PriceWebSocketService {
     private ws: WebSocket | null = null;
     private subscribers: Map<string, Set<PriceUpdateCallback>> = new Map();
     private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    private pingTimer: ReturnType<typeof setInterval> | null = null;
     private isConnected = false;
-    private reconnectAttempts = 0;
 
-    // 降级轮询（Polling）相关
-    private pollingTimer: ReturnType<typeof setInterval> | null = null;
-    private isPolling = false;
-
-    /* ── 建立 WebSocket 连接 ── */
+    /* ── 建立 WebSocket 连接 (连接 Gate.io 行情) ── */
     connect() {
-        // 已连接或正在轮询则跳过
-        if (this.ws?.readyState === WebSocket.OPEN || this.isPolling) return;
-
-        // 达到最大重连次数后停止（防止 CORS 拒绝时无限循环），并启动轮询
-        if (this.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-            console.info('[PriceWS] WebSocket 不可用（服务器可能不允许此 origin），将使用轮询降级...');
-            this.startPolling();
-            return;
-        }
+        if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) return;
 
         try {
             this.ws = new WebSocket(WS_URL);
-        } catch {
-            // WebSocket URL 构造失败（SSR 环境等），直接降级轮询
-            this.startPolling();
+        } catch (err) {
+            console.error('[PriceWS] Failed to construct Gate.io WebSocket:', err);
             return;
         }
 
         this.ws.onopen = () => {
-            console.log('[PriceWS] 连接成功');
+            console.log('[PriceWS] 连通 Gate.io 行情 WS 成功');
             this.isConnected = true;
-            this.reconnectAttempts = 0; // 连接成功后重置计数
-            this.stopPolling();         // 如果之前在轮询，则停止
-            // 重连后重新订阅所有交易对
-            this.subscribers.forEach((_, symbol) => this.sendSubscribe(symbol));
+
+            // 订阅所有相关的行情
+            const payload = Array.from(new Set(Object.values(SYMBOL_TO_GATE)));
+            this.ws?.send(JSON.stringify({
+                time: Math.floor(Date.now() / 1000),
+                channel: "spot.tickers",
+                event: "subscribe",
+                payload: payload
+            }));
+
+            // Gate.io 推荐设置心跳 /ping 保持存活
+            this.pingTimer = setInterval(() => {
+                if (this.ws?.readyState === WebSocket.OPEN) {
+                    this.ws.send(JSON.stringify({
+                        time: Math.floor(Date.now() / 1000),
+                        channel: "spot.ping"
+                    }));
+                }
+            }, 10000); // 10s ping
         };
 
         this.ws.onmessage = (event: MessageEvent) => {
             try {
-                const data = JSON.parse(event.data) as { type: string; data: MarketTicker };
-                if (data.type === 'ticker' && data.data?.symbol) {
-                    // 触发该交易对的所有回调
-                    const callbacks = this.subscribers.get(data.data.symbol);
-                    callbacks?.forEach(cb => cb(data.data));
+                const data = JSON.parse(event.data);
+
+                // 处理 pong 不要进入报错
+                if (data.channel === 'spot.pong') return;
+
+                // 格式: { channel: "spot.tickers", event: "update", result: { currency_pair: "BTC_USDT", last: "60000", ... } }
+                if (data.channel === 'spot.tickers' && data.event === 'update' && data.result) {
+                    const item = data.result;
+                    const gateSym = item.currency_pair;
+                    const internalSymbols = GATE_TO_SYMBOL[gateSym];
+
+                    if (internalSymbols) {
+                        const price = Number(item.last);
+                        const changePercent24h = Number(item.change_percentage);
+                        const high24h = Number(item.high_24h);
+                        const low24h = Number(item.low_24h);
+                        const volume24h = Number(item.base_volume);
+
+                        internalSymbols.forEach(sym => {
+                            if (this.subscribers.has(sym)) {
+                                const ticker: MarketTicker = {
+                                    symbol: sym,
+                                    price,
+                                    change24h: 0, // 可以自己推算或者不管
+                                    changePercent24h,
+                                    high24h,
+                                    low24h,
+                                    volume24h,
+                                };
+                                const callbacks = this.subscribers.get(sym);
+                                callbacks?.forEach(cb => cb(ticker));
+                            }
+                        });
+                    }
                 }
             } catch (err) {
-                console.warn('[PriceWS] 消息解析失败:', err);
+                // ignore JSON parse error
             }
         };
 
         this.ws.onclose = () => {
             this.isConnected = false;
-            this.reconnectAttempts++;
-
-            if (this.reconnectAttempts <= MAX_RECONNECT_ATTEMPTS) {
-                // 尚未达到上限，等待后重连
-                console.info(`[PriceWS] 连接断开，3秒后重连 (${this.reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
-                this.reconnectTimer = setTimeout(() => this.connect(), 3000);
-            }
+            if (this.pingTimer) clearInterval(this.pingTimer);
+            console.info(`[PriceWS] 连接断开，3秒后重连...`);
+            this.reconnectTimer = setTimeout(() => this.connect(), 3000);
         };
 
         this.ws.onerror = () => {
-            // 降级为 info 级别（不是红色 error），避免控制台报警
-            console.info('[PriceWS] WebSocket 连接被拒绝（可能是服务器 CORS 限制，不影响其他功能）');
+            console.info('[PriceWS] Gate.io 行情 WS 出错');
         };
-    }
-
-    /* ── 降级轮询（Polling）逻辑 ── */
-    private startPolling() {
-        if (this.isPolling) return;
-        this.isPolling = true;
-        console.log('[PriceWS] 🚀 轮询模式已启动 (每 3 秒获取最新价格)');
-
-        // 立即执行一次获取最新价格
-        this.fetchPricesAndNotify();
-
-        // 每 3 秒拉取一次
-        this.pollingTimer = setInterval(() => {
-            // 如果没有人订阅，就不拉取，省流量
-            if (this.subscribers.size > 0) {
-                this.fetchPricesAndNotify();
-            }
-        }, 3000);
-    }
-
-    private stopPolling() {
-        if (this.pollingTimer) {
-            clearInterval(this.pollingTimer);
-            this.pollingTimer = null;
-        }
-        this.isPolling = false;
-    }
-
-    // 拉取 HTTP API 行情并触发回调
-    private async fetchPricesAndNotify() {
-        try {
-            const data = await getMarketTickersApi();
-            data.forEach(ticker => {
-                // 如果这个交易对有人订阅，则触发回调
-                if (this.subscribers.has(ticker.symbol)) {
-                    const callbacks = this.subscribers.get(ticker.symbol);
-                    callbacks?.forEach(cb => cb(ticker));
-                }
-            });
-        } catch (err) {
-            console.warn('[PriceWS-Polling] 获取行情失败:', err);
-        }
     }
 
     /* ── 订阅某个交易对的实时价格 ── */
     subscribe(symbol: string, callback: PriceUpdateCallback) {
         if (!this.subscribers.has(symbol)) {
             this.subscribers.set(symbol, new Set());
-            // 通知服务端开始推送这个交易对（如果是 WS 模式的话）
-            if (this.isConnected) this.sendSubscribe(symbol);
         }
         this.subscribers.get(symbol)!.add(callback);
     }
@@ -147,7 +134,6 @@ class PriceWebSocketService {
             callbacks.delete(callback);
             if (callbacks.size === 0) {
                 this.subscribers.delete(symbol);
-                if (this.isConnected) this.sendUnsubscribe(symbol);
             }
         }
     }
@@ -155,22 +141,12 @@ class PriceWebSocketService {
     /* ── 断开 WebSocket 连接 ── */
     disconnect() {
         if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+        if (this.pingTimer) clearInterval(this.pingTimer);
         this.ws?.close();
         this.ws = null;
         this.isConnected = false;
-        this.stopPolling();
-    }
-
-    /* 发送订阅消息到服务端 */
-    private sendSubscribe(symbol: string) {
-        this.ws?.send(JSON.stringify({ action: 'subscribe', symbol }));
-    }
-
-    /* 发送取消订阅消息到服务端 */
-    private sendUnsubscribe(symbol: string) {
-        this.ws?.send(JSON.stringify({ action: 'unsubscribe', symbol }));
     }
 }
 
-// 导出单例（全局共用一个 WebSocket 连接）
+// 导出单例
 export const priceWS = new PriceWebSocketService();
