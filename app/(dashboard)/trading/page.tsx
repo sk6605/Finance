@@ -18,6 +18,7 @@ import { getOptionProductsApi, placeOptionOrderApi, getMyOptionOrdersApi } from 
 import { priceWS } from '@/lib/websocket/priceWebSocket';
 import { MarketTicker, OptionOrder, OptionProduct } from '@/types';
 import TradingChart from '@/components/trading/TradingChart';
+import ExchangeRateModal from '@/components/trading/ExchangeRateModal';
 
 // 所有交易对配置
 const SYMBOL_COLOR: Record<string, string> = {
@@ -55,6 +56,9 @@ export default function TradingPage() {
     // ── 合约面板状态 ──
     const [leverage, setLeverage] = useState(1);
     const [contractMargin, setContractMargin] = useState('');
+
+    // ── 汇率查询弹窗 ──
+    const [showExchangeModal, setShowExchangeModal] = useState(false);
 
 
 
@@ -131,6 +135,29 @@ export default function TradingPage() {
             <TopHeader title="Trading" subtitle="Options & Contract trading on gold and precious metals" />
 
             <div style={{ padding: '20px 28px' }}>
+                {/* ── 顶部操作区：汇率信息 & 设置 ── */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <div style={{ color: 'var(--color-text-secondary)', fontSize: '13px' }}>
+                        Trading Currency: <strong style={{ color: 'var(--color-gold-primary)', fontSize: '14px', marginLeft: '4px' }}>USD</strong>
+                    </div>
+                    <button
+                        onClick={() => setShowExchangeModal(true)}
+                        style={{
+                            background: 'var(--color-bg-input)', border: '1px solid var(--color-border)',
+                            padding: '6px 12px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px',
+                            color: 'var(--color-text-primary)', transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--color-gold-primary)')}
+                        onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--color-border)')}
+                    >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                        </svg>
+                        Exchange Rates
+                    </button>
+                </div>
+
                 {/* ── 交易对选择器（横向滚动 Tabs） ── */}
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', overflowX: 'auto', paddingBottom: '4px' }}>
                     {activeTabs.map(sym => {
@@ -361,6 +388,9 @@ export default function TradingPage() {
                         </table>
                     )}
                 </div>
+
+                {/* ── 汇率查询弹窗 ── */}
+                {showExchangeModal && <ExchangeRateModal onClose={() => setShowExchangeModal(false)} />}
             </div>
         </div>
     );
