@@ -10,14 +10,14 @@
 
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import TopHeader from '@/components/layout/TopHeader';
 import { useMarketStore } from '@/store/marketStore';
 import { useAuthStore } from '@/store/authStore';
-import { getKlineDataApi } from '@/lib/api/marketApi';
 import { getOptionProductsApi, placeOptionOrderApi, getMyOptionOrdersApi } from '@/lib/api/tradingApi';
 import { priceWS } from '@/lib/websocket/priceWebSocket';
-import { KlineCandle, MarketTicker, OptionOrder, OptionProduct } from '@/types';
+import { MarketTicker, OptionOrder, OptionProduct } from '@/types';
+import TradingChart from '@/components/trading/TradingChart';
 
 // 所有交易对配置
 const SYMBOL_COLOR: Record<string, string> = {
@@ -43,13 +43,6 @@ export default function TradingPage() {
     } = useMarketStore();
     const { user } = useAuthStore();
 
-    // ── 图表相关状态 ──
-    const chartContainerRef = useRef<HTMLDivElement>(null);
-    const chartRef = useRef<unknown>(null);
-    const candleSeriesRef = useRef<unknown>(null);
-    const [klinePeriod, setKlinePeriod] = useState<KlinePeriod>('1min');
-    const [klineLoading, setKlineLoading] = useState(false);
-
     // ── 交易面板状态（期权）──
     const [tradeTab, setTradeTab] = useState<TradeTab>('option');
     const [optionProducts, setOptionProducts] = useState<OptionProduct[]>([]);
@@ -63,76 +56,7 @@ export default function TradingPage() {
     const [leverage, setLeverage] = useState(1);
     const [contractMargin, setContractMargin] = useState('');
 
-    const currentTicker = tickers[selectedSymbol];
 
-    /* ── 初始化 TradingView Lightweight Chart ── */
-    useEffect(() => {
-        if (!chartContainerRef.current) return;
-
-        // 动态导入（避免 SSR 问题）
-        import('lightweight-charts').then(({ createChart, CandlestickSeries }) => {
-            const chart = createChart(chartContainerRef.current!, {
-                width: chartContainerRef.current!.clientWidth,
-                height: 420,
-                layout: {
-                    background: { color: '#090e1a' },
-                    textColor: '#8899aa',
-                },
-                grid: {
-                    vertLines: { color: '#1e3055' },
-                    horzLines: { color: '#1e3055' },
-                },
-                crosshair: { mode: 1 },
-                rightPriceScale: { borderColor: '#1e3055' },
-                timeScale: { borderColor: '#1e3055', timeVisible: true },
-            });
-
-            const candleSeries = chart.addSeries(CandlestickSeries, {
-                upColor: '#00c896',
-                downColor: '#ff4757',
-                borderDownColor: '#ff4757',
-                borderUpColor: '#00c896',
-                wickDownColor: '#ff4757',
-                wickUpColor: '#00c896',
-            });
-
-            chartRef.current = chart;
-            candleSeriesRef.current = candleSeries;
-
-            // 自适应宽度 resize
-            const handleResize = () => {
-                if (chartContainerRef.current) {
-                    chart.applyOptions({ width: chartContainerRef.current.clientWidth });
-                }
-            };
-            window.addEventListener('resize', handleResize);
-
-            return () => {
-                window.removeEventListener('resize', handleResize);
-                chart.remove();
-            };
-        });
-    }, []);
-
-    /* ── 加载 K 线数据并渲染到图表 ── */
-    const loadKlineData = useCallback(async () => {
-        if (!candleSeriesRef.current) return;
-        setKlineLoading(true);
-        try {
-            const candles: KlineCandle[] = await getKlineDataApi(selectedSymbol, klinePeriod);
-            // 转换格式并按时间排序
-            const chartData = candles
-                .sort((a, b) => a.time - b.time)
-                .map(c => ({ time: c.time as unknown, open: c.open, high: c.high, low: c.low, close: c.close }));
-            (candleSeriesRef.current as { setData: (d: unknown[]) => void }).setData(chartData);
-        } catch (err) {
-            console.error('[TradingPage] K 线加载失败:', err);
-        } finally {
-            setKlineLoading(false);
-        }
-    }, [selectedSymbol, klinePeriod]);
-
-    useEffect(() => { loadKlineData(); }, [loadKlineData]);
 
     /* ── 初始化时拉取全局行情 ── */
     useEffect(() => {
@@ -144,25 +68,13 @@ export default function TradingPage() {
         });
     }, []);
 
-    /* ── WebSocket 订阅实时价格（选中的交易对 + 所有打开的 tab） ── */
+    /* ── WebSocket 订阅实时价格（全局更新 tabs 头部和右侧面板数据） ── */
     useEffect(() => {
         priceWS.connect();
 
-        // 我们需要监听所有 activeTabs 的价格变化，同时如果是 selectedSymbol，还要更新图表
-        const callbacks: Array<{ symbol: string, cb: (t: MarketTicker) => void }> = activeTabs.map(sym => {
+        const callbacks = activeTabs.map(sym => {
             const handleTick = (ticker: MarketTicker) => {
                 updateTicker(ticker);
-                // 只有当前选中的交易对才更新 K 线图表最后一根蜡烛
-                if (sym === selectedSymbol && candleSeriesRef.current) {
-                    const now = Math.floor(Date.now() / 1000);
-                    (candleSeriesRef.current as { update: (d: unknown) => void }).update({
-                        time: now,
-                        open: ticker.price,
-                        high: ticker.high24h,
-                        low: ticker.low24h,
-                        close: ticker.price,
-                    });
-                }
             };
             priceWS.subscribe(sym, handleTick);
             return { symbol: sym, cb: handleTick };
@@ -171,7 +83,7 @@ export default function TradingPage() {
         return () => {
             callbacks.forEach(({ symbol, cb }) => priceWS.unsubscribe(symbol, cb));
         };
-    }, [selectedSymbol, activeTabs, updateTicker]);
+    }, [activeTabs, updateTicker]);
 
     /* ── 加载期权产品列表 + 活跃订单 ── */
     useEffect(() => {
@@ -287,38 +199,10 @@ export default function TradingPage() {
                 {/* ── 主区：图表（左）+ 下单面板（右） ── */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '20px', alignItems: 'start' }}>
                     {/* 左：图表区 */}
-                    <div>
-                        {/* 当前价格 + K 线周期选择 */}
-                        <div className="card" style={{ marginBottom: '8px', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                                <span style={{ fontSize: '28px', fontWeight: 700, fontFamily: 'monospace' }}>
-                                    {currentTicker ? currentTicker.price.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '—'}
-                                </span>
-                                <span style={{ marginLeft: '10px', fontSize: '12px', color: (currentTicker?.changePercent24h ?? 0) >= 0 ? 'var(--color-green)' : 'var(--color-red)' }}>
-                                    {currentTicker ? `${currentTicker.changePercent24h >= 0 ? '+' : ''}${currentTicker.changePercent24h.toFixed(2)}%` : ''}
-                                </span>
-                            </div>
-                            {/* 时间周期按钮 */}
-                            <div style={{ display: 'flex', gap: '4px' }}>
-                                {KLINE_PERIODS.map(p => (
-                                    <button key={p} onClick={() => setKlinePeriod(p)} style={{
-                                        padding: '5px 10px', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 500,
-                                        background: klinePeriod === p ? 'var(--color-gold-primary)' : 'var(--color-bg-input)',
-                                        color: klinePeriod === p ? '#000' : 'var(--color-text-secondary)',
-                                    }}>{p}</button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* K 线图容器 */}
-                        <div className="card" style={{ padding: 0, overflow: 'hidden', position: 'relative' }}>
-                            {klineLoading && (
-                                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(9,14,26,0.7)', zIndex: 10 }}>
-                                    <span style={{ color: 'var(--color-text-secondary)' }}>Loading chart...</span>
-                                </div>
-                            )}
-                            <div ref={chartContainerRef} style={{ width: '100%' }} />
-                        </div>
+                    <div style={{ position: 'relative', minHeight: '480px' }}>
+                        {activeTabs.map(sym => (
+                            <TradingChart key={sym} symbol={sym} isActive={sym === selectedSymbol} />
+                        ))}
                     </div>
 
                     {/* 右：下单面板 */}
