@@ -8,31 +8,48 @@
 /* ── 设计 Token（CSS 变量） ── */
 :root {
   /* 背景色系 */
-  --color-bg-primary:    #090e1a;   /* 主背景（最深） */
-  --color-bg-secondary:  #0d1628;   /* Sidebar 背景 */
-  --color-bg-card:       #111f3a;   /* 卡片、面板背景 */
-  --color-bg-input:      #1a2744;   /* 输入框背景 */
-  --color-bg-hover:      #1e3055;   /* 悬停背景 */
+  --color-bg-primary: #090e1a;
+  /* 主背景（最深） */
+  --color-bg-secondary: #0d1628;
+  /* Sidebar 背景 */
+  --color-bg-card: #111f3a;
+  /* 卡片、面板背景 */
+  --color-bg-input: #1a2744;
+  /* 输入框背景 */
+  --color-bg-hover: #1e3055;
+  /* 悬停背景 */
 
   /* 金色主色调 */
-  --color-gold-primary:  #d4af37;   /* 主金色 */
-  --color-gold-light:    #f0c040;   /* 亮金色（hover） */
-  --color-gold-dim:      #8a6f1a;   /* 暗金色（禁用/次要） */
+  --color-gold-primary: #d4af37;
+  /* 主金色 */
+  --color-gold-light: #f0c040;
+  /* 亮金色（hover） */
+  --color-gold-dim: #8a6f1a;
+  /* 暗金色（禁用/次要） */
 
   /* 文字色 */
-  --color-text-primary:  #ffffff;   /* 主要文字 */
-  --color-text-secondary:#8899aa;   /* 次要文字 */
-  --color-text-muted:    #4a5a70;   /* 弱化文字 */
+  --color-text-primary: #ffffff;
+  /* 主要文字 */
+  --color-text-secondary: #8899aa;
+  /* 次要文字 */
+  --color-text-muted: #4a5a70;
+  /* 弱化文字 */
 
   /* 边框 */
-  --color-border:        #1e3055;   /* 标准边框 */
-  --color-border-gold:   #d4af3730; /* 金色半透明边框 */
+  --color-border: #1e3055;
+  /* 标准边框 */
+  --color-border-gold: #d4af3730;
+  /* 金色半透明边框 */
 
   /* 状态色 */
-  --color-green:  #00c896;  /* 涨价 / 成功 */
-  --color-red:    #ff4757;  /* 跌价 / 危险 */
-  --color-orange: #ffa500;  /* 警告 / 待处理 */
-  --color-blue:   #3b82f6;  /* 信息 */
+  --color-green: #00c896;
+  /* 涨价 / 成功 */
+  --color-red: #ff4757;
+  /* 跌价 / 危险 */
+  --color-orange: #ffa500;
+  /* 警告 / 待处理 */
+  --color-blue: #3b82f6;
+  /* 信息 */
 
   /* 圆角 */
   --radius-sm: 6px;
@@ -43,8 +60,35 @@
   --sidebar-width: 220px;
 }
 
+/* ── 明亮模式 (Light Mode) ── */
+.light {
+  --color-bg-primary: #f8fafc;
+  --color-bg-secondary: #ffffff;
+  --color-bg-card: #ffffff;
+  --color-bg-input: #f1f5f9;
+  --color-bg-hover: #e2e8f0;
+
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94a3b8;
+
+  --color-border: #e2e8f0;
+  --color-border-gold: #d4af3740;
+
+  --color-gold-primary: #b38b22;
+  --color-gold-light: #d4af37;
+  --color-gold-dim: #fef08a;
+
+  --color-green: #059669;
+  --color-red: #dc2626;
+  --color-orange: #ea580c;
+  --color-blue: #2563eb;
+}
+
 /* ── 基础重置 ── */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -67,13 +111,16 @@ body {
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: var(--color-bg-secondary);
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--color-border);
   border-radius: 3px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-gold-dim);
 }
@@ -96,10 +143,12 @@ body {
   cursor: pointer;
   transition: opacity 0.2s ease, transform 0.1s ease;
 }
+
 .btn-gold:hover {
   opacity: 0.9;
   transform: translateY(-1px);
 }
+
 .btn-gold:active {
   transform: translateY(0);
 }
@@ -115,6 +164,7 @@ body {
   cursor: pointer;
   transition: background 0.2s ease, color 0.2s ease;
 }
+
 .btn-outline-gold:hover {
   background: var(--color-gold-primary);
   color: #000;
@@ -140,16 +190,23 @@ body {
   outline: none;
   transition: border-color 0.2s;
 }
+
 .input-field:focus {
   border-color: var(--color-gold-primary);
 }
+
 .input-field::placeholder {
   color: var(--color-text-muted);
 }
 
 /* ── 价格涨跌色 ── */
-.price-up   { color: var(--color-green); }
-.price-down { color: var(--color-red);   }
+.price-up {
+  color: var(--color-green);
+}
+
+.price-down {
+  color: var(--color-red);
+}
 
 /* ── 标签 Badge ── */
 .badge {
@@ -160,18 +217,42 @@ body {
   font-size: 11px;
   font-weight: 600;
 }
-.badge-green  { background: #00c89620; color: var(--color-green); }
-.badge-red    { background: #ff475720; color: var(--color-red); }
-.badge-gold   { background: #d4af3720; color: var(--color-gold-primary); }
-.badge-orange { background: #ffa50020; color: var(--color-orange); }
+
+.badge-green {
+  background: #00c89620;
+  color: var(--color-green);
+}
+
+.badge-red {
+  background: #ff475720;
+  color: var(--color-red);
+}
+
+.badge-gold {
+  background: #d4af3720;
+  color: var(--color-gold-primary);
+}
+
+.badge-orange {
+  background: #ffa50020;
+  color: var(--color-orange);
+}
 
 /* ── 过渡动画 ── */
 .fade-in {
   animation: fadeIn 0.3s ease forwards;
 }
+
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ── 分割线 ── */

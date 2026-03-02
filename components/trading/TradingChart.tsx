@@ -257,19 +257,19 @@ export default function TradingChart({ symbol, isActive }: { symbol: string; isA
     const tooltipTop = tY > 200 ? tY - 140 : tY + 20;
 
     return (
-        <div style={{ display: isActive ? 'block' : 'none', width: '100%' }}>
+        <div className={`${isActive ? 'block' : 'hidden'} w-full`}>
 
             {/* Header: Label + Price + Buttons */}
             <div className="card" style={{ marginBottom: '8px', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                    <span style={{ fontSize: '28px', fontWeight: 700, fontFamily: 'monospace' }}>
+                    <span className="text-[28px] font-bold font-monospace">
                         {currentTicker ? currentTicker.price.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '—'}
                     </span>
-                    <span style={{ marginLeft: '10px', fontSize: '12px', color: (currentTicker?.changePercent24h ?? 0) >= 0 ? 'var(--color-green)' : 'var(--color-red)' }}>
+                    <span className={`ml-2.5 text-[12px] ${(currentTicker?.changePercent24h ?? 0) >= 0 ? 'text-[var(--color-green)]' : 'text-[var(--color-red)]'}`}>
                         {currentTicker ? `${currentTicker.changePercent24h >= 0 ? '+' : ''}${currentTicker.changePercent24h.toFixed(2)}%` : ''}
                     </span>
                 </div>
-                <div style={{ display: 'flex', gap: '4px' }}>
+                <div className="flex gap-4">
                     {KLINE_PERIODS.map(p => (
                         <button key={p} onClick={() => setKlinePeriod(p)} style={{
                             padding: '5px 10px', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 500,
@@ -281,80 +281,53 @@ export default function TradingChart({ symbol, isActive }: { symbol: string; isA
             </div>
 
             {/* K 线图区域 */}
-            <div className="card" style={{ padding: 0, overflow: 'hidden', position: 'relative' }}>
+            <div className="card p-0 overflow-hidden relative">
                 {klineLoading && (
-                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(9,14,26,0.7)', zIndex: 10 }}>
-                        <span style={{ color: 'var(--color-text-secondary)' }}>Loading chart...</span>
+                    <div className="absolute inset-0 flex items-center justify-center bg-[#090e1a]/70 z-10">
+                        <span className="text-[var(--color-text-secondary)]">Loading chart...</span>
                     </div>
                 )}
 
                 {/* 悬浮 MA Legend (Left Top inside chart) */}
-                <div style={{
-                    position: 'absolute',
-                    top: '12px',
-                    left: '12px',
-                    zIndex: 5,
-                    display: 'flex',
-                    gap: '12px',
-                    fontSize: '12px',
-                    fontWeight: 'bold',
-                    pointerEvents: 'none',
-                    opacity: 0.9,
-                    fontFamily: 'monospace'
-                }}>
-                    <span style={{ color: '#8899aa' }}>MA(5,10,30,60)</span>
-                    <span style={{ color: '#FFA000' }}>MA5: {maLabels.ma5.toFixed(4)}</span>
-                    <span style={{ color: '#9C27B0' }}>MA10: {maLabels.ma10.toFixed(4)}</span>
-                    <span style={{ color: '#2196F3' }}>MA30: {maLabels.ma30.toFixed(4)}</span>
-                    <span style={{ color: '#E91E63' }}>MA60: {maLabels.ma60.toFixed(4)}</span>
+                <div className="absolute top-12 left-12 z-[5] flex gap-3 text-xs font-bold pointer-events-none opacity-90 font-mono">
+                    <span className="text-[#8899aa]">MA(5,10,30,60)</span>
+                    <span className="text-[#FFA000]">MA5: {maLabels.ma5.toFixed(4)}</span>
+                    <span className="text-[#9C27B0]">MA10: {maLabels.ma10.toFixed(4)}</span>
+                    <span className="text-[#2196F3]">MA30: {maLabels.ma30.toFixed(4)}</span>
+                    <span className="text-[#E91E63]">MA60: {maLabels.ma60.toFixed(4)}</span>
                 </div>
 
                 {/* 悬浮 Detail Card (Tooltip) on Crosshair hover */}
                 {crosshairInfo && (
-                    <div style={{
-                        position: 'absolute',
-                        left: tooltipLeft,
-                        top: tooltipTop,
-                        zIndex: 20,
-                        backgroundColor: '#ffffff',
-                        border: '1px solid rgba(0,0,0,0.1)',
-                        borderRadius: '6px',
-                        padding: '10px 14px',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-                        minWidth: '160px',
-                        pointerEvents: 'none',
-                        fontFamily: 'monospace',
-                        color: '#334E68', // grayish blue text
-                        fontSize: '12px'
-                    }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                            <span style={{ color: '#829AB1' }}>Time:</span>
+                    <div className="absolute z-20 bg-white border border-black/10 rounded-md px-3.5 py-2.5 shadow-[0_4px_12px_rgba(0,0,0,0.2)] min-w-[160px] pointer-events-none font-mono text-[#334E68] text-xs" style={{ left: tooltipLeft, top: tooltipTop }}>
+                        <div className="flex justify-between mb-1">
+                            <span className="text-[#829AB1]">Time:</span>
                             <span>{crosshairInfo.time}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                            <span style={{ color: '#829AB1' }}>Open:</span>
-                            <span style={{ color: '#102A43' }}>{crosshairInfo.open.toFixed(4)}</span>
+                        <div className="flex justify-between mb-[2px]">
+                            <span className="text-[#829AB1]">Open:</span>
+                            <span className="text-[#102A43]">{crosshairInfo.open.toFixed(4)}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                            <span style={{ color: '#829AB1' }}>High:</span>
-                            <span style={{ color: '#102A43' }}>{crosshairInfo.high.toFixed(4)}</span>
+                        <div className="flex justify-between mb-[2px]">
+                            <span className="text-[#829AB1]">High:</span>
+                            <span className="text-[#102A43]">{crosshairInfo.high.toFixed(4)}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                            <span style={{ color: '#829AB1' }}>Low:</span>
-                            <span style={{ color: '#102A43' }}>{crosshairInfo.low.toFixed(4)}</span>
+                        <div className="flex justify-between mb-[2px]">
+                            <span className="text-[#829AB1]">Low:</span>
+                            <span className="text-[#102A43]">{crosshairInfo.low.toFixed(4)}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                            <span style={{ color: '#829AB1' }}>Close:</span>
-                            <span style={{ color: '#102A43' }}>{crosshairInfo.close.toFixed(4)}</span>
+                        <div className="flex justify-between mb-[2px]">
+                            <span className="text-[#829AB1]">Close:</span>
+                            <span className="text-[#102A43]">{crosshairInfo.close.toFixed(4)}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: '#829AB1' }}>Volume:</span>
-                            <span style={{ color: '#102A43' }}>{formatVolume(activeVolume)}</span>
+                        <div className="flex justify-between">
+                            <span className="text-[#829AB1]">Volume:</span>
+                            <span className="text-[#102A43]">{formatVolume(activeVolume)}</span>
                         </div>
                     </div>
                 )}
 
-                <div ref={chartContainerRef} style={{ width: '100%' }} />
+                <div ref={chartContainerRef} className="w-full" />
             </div>
         </div>
     );

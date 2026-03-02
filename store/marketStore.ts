@@ -36,7 +36,7 @@ export const useMarketStore = create<MarketState>()(
             tickers: {},
             selectedSymbol: 'XAUUSD',  // 默认选中黄金
             activeTabs: ['XAUUSD'],    // 默认打开黄金
-            isLoading: false,
+            isLoading: true,
 
             setTickers: (tickerList) => {
                 // 将数组转换为 Map 格式，方便按 symbol 快速查找

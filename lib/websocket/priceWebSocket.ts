@@ -16,6 +16,15 @@ const SYMBOL_TO_GATE: Record<string, string> = {
     'XCUUSD': 'XRP_USDT',    // 暂用 XRP 模拟铜
 };
 
+const SYMBOL_MULTIPLIER: Record<string, number> = {
+    'XAUUSD': 0.5,
+    'XAGUSD': 30 / 65000,
+    'XPTUSD': 960 / 2600,
+    'XPDUSD': 950 / 600,
+    'XNIUSD': 16 / 150,
+    'XCUUSD': 4.1 / 2.5,
+};
+
 // 反向映射表：Gate Symbol -> 内部 Symbol 数组 (可能多个内部符映射到同一个符)
 const GATE_TO_SYMBOL: Record<string, string[]> = {};
 Object.entries(SYMBOL_TO_GATE).forEach(([sym, gate]) => {
@@ -87,13 +96,14 @@ class PriceWebSocketService {
 
                         internalSymbols.forEach(sym => {
                             if (this.subscribers.has(sym)) {
+                                const mul = SYMBOL_MULTIPLIER[sym] || 1;
                                 const ticker: MarketTicker = {
                                     symbol: sym,
-                                    price,
+                                    price: price * mul,
                                     change24h: 0, // 可以自己推算或者不管
                                     changePercent24h,
-                                    high24h,
-                                    low24h,
+                                    high24h: high24h * mul,
+                                    low24h: low24h * mul,
                                     volume24h,
                                 };
                                 const callbacks = this.subscribers.get(sym);

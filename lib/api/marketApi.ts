@@ -22,6 +22,16 @@ const SYMBOL_TO_GATE: Record<string, string> = {
     'XCUUSD': 'XRP_USDT',    // 暂用 XRP 模拟铜
 };
 
+// 添加价格乘数映射以贴合真实世界价格 (Gate.io 的 PAXG 是真实金价的两倍左右，代币映射需要根据当前市场调比)
+export const SYMBOL_MULTIPLIER: Record<string, number> = {
+    'XAUUSD': 0.5,         // PAXG 约 5400 -> 真实黄金约 2700
+    'XAGUSD': 30 / 65000,  // BTC 约 65000 -> 真实白银约 30
+    'XPTUSD': 960 / 2600,  // ETH 约 2600 -> 真实铂金约 960
+    'XPDUSD': 950 / 600,   // BNB 约 600 -> 真实钯金约 950
+    'XNIUSD': 16 / 150,    // SOL 约 150 -> 真实镍约 16
+    'XCUUSD': 4.1 / 2.5,   // XRP 约 2.5 -> 真实铜约 4.1
+};
+
 const GATE_TO_SYMBOL: Record<string, string[]> = {};
 Object.entries(SYMBOL_TO_GATE).forEach(([sym, gate]) => {
     if (!GATE_TO_SYMBOL[gate]) GATE_TO_SYMBOL[gate] = [];
@@ -39,14 +49,15 @@ export async function getMarketTickersApi(): Promise<MarketTicker[]> {
             const internalSymbols = GATE_TO_SYMBOL[gateSym];
             if (internalSymbols) {
                 internalSymbols.forEach(sym => {
+                    const mul = SYMBOL_MULTIPLIER[sym] || 1;
                     mapped.push({
                         symbol: sym,
-                        price: Number(item.last),
+                        price: Number(item.last) * mul,
                         change24h: 0, // Gate doesn't provide absolute change directly easily, but we have percentage
                         changePercent24h: Number(item.change_percentage),
-                        volume24h: Number(item.base_volume),
-                        high24h: Number(item.high_24h),
-                        low24h: Number(item.low_24h),
+                        volume24h: Number(item.base_volume), // volume stays raw for visual effect
+                        high24h: Number(item.high_24h) * mul,
+                        low24h: Number(item.low_24h) * mul,
                     });
                 });
             }
@@ -65,14 +76,15 @@ export async function getTickerApi(symbol: string): Promise<MarketTicker> {
         const res = await axios.get(`/api/gateio/spot/tickers?currency_pair=${gateSym}`);
         const item = res.data[0];
         if (!item) throw new Error("No data");
+        const mul = SYMBOL_MULTIPLIER[symbol] || 1;
         return {
             symbol,
-            price: Number(item.last),
+            price: Number(item.last) * mul,
             change24h: 0,
             changePercent24h: Number(item.change_percentage),
             volume24h: Number(item.base_volume),
-            high24h: Number(item.high_24h),
-            low24h: Number(item.low_24h),
+            high24h: Number(item.high_24h) * mul,
+            low24h: Number(item.low_24h) * mul,
         };
     } catch (err) {
         return { symbol, price: 0, change24h: 0, changePercent24h: 0, volume24h: 0, high24h: 0, low24h: 0 };
@@ -99,12 +111,13 @@ export async function getKlineDataApi(
         const res = await axios.get(`/api/gateio/spot/candlesticks?currency_pair=${gateSym}&interval=${interval}&limit=${limit}`);
 
         // Gate.io returns: [timestamp, quote_vol, close, high, low, open, base_vol]
+        const mul = SYMBOL_MULTIPLIER[symbol] || 1;
         return res.data.map((k: any) => ({
             time: Number(k[0]), // Gate.io is already in seconds
-            open: Number(k[5]),
-            high: Number(k[3]),
-            low: Number(k[4]),
-            close: Number(k[2]),
+            open: Number(k[5]) * mul,
+            high: Number(k[3]) * mul,
+            low: Number(k[4]) * mul,
+            close: Number(k[2]) * mul,
             volume: Number(k[6]),
         }));
     } catch (err) {

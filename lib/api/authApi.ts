@@ -13,6 +13,7 @@
 import apiClient from './apiClient';
 import { encryptPayload } from './encryption';
 import { User } from '@/types';
+import { emailSchema, passwordSchema, codeSchema } from './validation';
 
 /** 登录成功后的响应数据结构 */
 interface LoginResult {
@@ -30,8 +31,12 @@ interface LoginResult {
 
 /* ── 登录（使用 RSA+AES 加密发送凭证） ── */
 export async function loginApi(email: string, password: string): Promise<{ token: string; user: User }> {
+    // 强制输入校验与清洗
+    const safeEmail = emailSchema.parse(email);
+    const safePassword = passwordSchema.parse(password);
+
     // 构建要加密的 payload
-    const payload = { username: email, password };
+    const payload = { username: safeEmail, password: safePassword };
 
     // 用平台公钥加密 payload
     const encryptedBody = await encryptPayload(payload);
@@ -62,7 +67,8 @@ export async function loginApi(email: string, password: string): Promise<{ token
 
 /* ── 发送邮箱验证码 ── */
 export async function sendEmailOtpApi(email: string): Promise<void> {
-    await apiClient.get('/api/app/getEmailCaptcha', { params: { email } });
+    const safeEmail = emailSchema.parse(email);
+    await apiClient.get('/api/app/getEmailCaptcha', { params: { email: safeEmail } });
 }
 
 /* ── 注册 ── */
@@ -72,8 +78,20 @@ export async function registerApi(data: {
     captcha: string;     // 邮箱验证码（API 字段名为 captcha，非 smscode）
     inviteCode?: string;
 }): Promise<{ token: string; user: User }> {
+    // 强制输入校验与清洗
+    const safeEmail = emailSchema.parse(data.email);
+    const safePassword = passwordSchema.parse(data.password);
+    const safeCaptcha = codeSchema.parse(data.captcha);
+    const safeInviteCode = codeSchema.parse(data.inviteCode || '');
+
     // 真实 API 要求 username 字段，直接用 email 作为 username
-    const payload = { ...data, username: data.email };
+    const payload = {
+        email: safeEmail,
+        password: safePassword,
+        captcha: safeCaptcha,
+        inviteCode: safeInviteCode,
+        username: safeEmail
+    };
     const encryptedBody = await encryptPayload(payload);
     const res = await apiClient.post<{ code: number; result: LoginResult }>(
         '/api/app/register',

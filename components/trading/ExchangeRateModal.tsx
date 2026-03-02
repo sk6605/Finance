@@ -36,32 +36,25 @@ export default function ExchangeRateModal({ onClose }: { onClose: () => void }) 
     );
 
     return (
-        <div style={{
-            position: 'fixed', inset: 0, zIndex: 9999,
-            background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>
-            <div className="card" style={{ width: '420px', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{
-                            width: 32, height: 32, borderRadius: '50%', background: 'var(--color-bg-input)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-gold-primary)'
-                        }}>
+        <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-[2px] flex items-center justify-center">
+            <div className="card w-[420px] max-h-[80vh] flex flex-col">
+                <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-[var(--color-bg-input)] flex items-center justify-center text-[var(--color-gold-primary)]">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                             </svg>
                         </div>
-                        <h3 style={{ margin: 0, fontWeight: 700, fontSize: '16px' }}>Global Exchange Rates</h3>
+                        <h3 className="m-0 font-bold text-base">Global Exchange Rates</h3>
                     </div>
-                    <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--color-text-secondary)', cursor: 'pointer', fontSize: '20px' }}>×</button>
+                    <button onClick={onClose} className="bg-transparent border-none text-[var(--color-text-secondary)] cursor-pointer text-xl hover:text-white">×</button>
                 </div>
 
-                <div style={{ marginBottom: '12px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-                    Base Currency: <strong style={{ color: 'var(--color-text-primary)' }}>1 USD</strong>
+                <div className="mb-3 text-[13px] text-[var(--color-text-secondary)]">
+                    Base Currency: <strong className="text-[var(--color-text-primary)]">1 USD</strong>
                 </div>
 
-                <div style={{ marginBottom: '16px' }}>
+                <div className="mb-4">
                     <input
                         type="text"
                         className="input-field"
@@ -71,40 +64,40 @@ export default function ExchangeRateModal({ onClose }: { onClose: () => void }) 
                     />
                 </div>
 
-                <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
+                <div className="flex-1 overflow-y-auto pr-1">
                     {loading ? (
-                        <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--color-text-secondary)' }}>
+                        <div className="text-center py-10 px-5 text-[var(--color-text-secondary)]">
                             Fetching real-time rates...
                         </div>
                     ) : error ? (
-                        <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--color-red)' }}>
+                        <div className="text-center py-10 px-5 text-[var(--color-red)]">
                             {error}
                         </div>
                     ) : (
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                            <thead style={{ position: 'sticky', top: 0, background: 'var(--color-bg-card)', zIndex: 1 }}>
-                                <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-secondary)', fontSize: '13px' }}>
-                                    <th style={{ textAlign: 'left', padding: '8px 0', fontWeight: 600 }}>Currency</th>
-                                    <th style={{ textAlign: 'right', padding: '8px 0', fontWeight: 600 }}>Rate vs USD</th>
+                        <table className="w-full border-collapse">
+                            <thead className="sticky top-0 bg-[var(--color-bg-card)] z-10">
+                                <tr className="border-b border-[var(--color-border)] text-[var(--color-text-secondary)] text-[13px]">
+                                    <th className="text-left py-2 px-0 font-semibold">Currency</th>
+                                    <th className="text-right py-2 px-0 font-semibold">Rate vs USD</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {filteredRates.map(([currency, rate]) => (
-                                    <tr key={currency} style={{ borderBottom: '1px solid var(--color-bg-input)', fontSize: '14px' }}>
-                                        <td style={{ padding: '12px 0', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <span style={{ color: 'var(--color-text-secondary)', fontSize: '12px', width: '24px' }}>
+                                    <tr key={currency} className="border-b border-[var(--color-bg-input)] text-sm">
+                                        <td className="py-3 px-0 font-semibold flex items-center gap-2">
+                                            <span className="text-[var(--color-text-secondary)] text-xs w-6">
                                                 {/* Optional: Add basic flag support or just standard text */}
                                             </span>
                                             {currency}
                                         </td>
-                                        <td style={{ padding: '12px 0', textAlign: 'right', fontFamily: 'monospace', color: 'var(--color-gold-light)', fontWeight: 500 }}>
+                                        <td className="py-3 px-0 text-right font-mono text-[var(--color-gold-light)] font-medium">
                                             {rate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
                                         </td>
                                     </tr>
                                 ))}
                                 {filteredRates.length === 0 && (
                                     <tr>
-                                        <td colSpan={2} style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--color-text-secondary)' }}>
+                                        <td colSpan={2} className="text-center py-10 px-5 text-[var(--color-text-secondary)]">
                                             No currency found matching "{search}"
                                         </td>
                                     </tr>

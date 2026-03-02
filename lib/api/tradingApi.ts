@@ -13,6 +13,8 @@
 import apiClient from './apiClient';
 import { encryptPayload } from './encryption';
 import { ContractOrderPayload, ContractPosition, OptionOrder, OptionProduct } from '@/types';
+import { amountSchema, leverageSchema, sanitizeString } from './validation';
+import { z } from 'zod';
 
 // ── 期权交易 ──────────────────────────────────────────────────
 
@@ -44,7 +46,13 @@ export async function placeOptionOrderApi(payload: {
     setId: string;       // 期权产品 ID，字段名是 setId
     type: 1 | 2;        // 1=买涨 UP, 2=买跌 DOWN
 }): Promise<OptionOrder> {
-    const encryptedBody = await encryptPayload(payload);
+    // 基础校验与净化
+    const safeSymbol = sanitizeString(payload.symbol);
+    const safeMoney = amountSchema.parse(payload.money);
+    const safeSetId = z.string().min(1).parse(payload.setId);
+
+    const safePayload = { ...payload, symbol: safeSymbol, money: safeMoney, setId: safeSetId };
+    const encryptedBody = await encryptPayload(safePayload);
     const res = await apiClient.post<{ code: number; result: OptionOrder }>(
         '/api/trade/appSecondContractOrder/buy',
         encryptedBody
@@ -65,7 +73,13 @@ export async function getMyOptionOrdersApi(params: { pageNo?: number; pageSize?:
 
 /* ── 开仓（做多 Long / 做空 Short，加密 POST） ── */
 export async function openContractPositionApi(payload: ContractOrderPayload): Promise<ContractPosition> {
-    const encryptedBody = await encryptPayload(payload);
+    const safePayload = {
+        ...payload,
+        symbol: sanitizeString(payload.symbol),
+        margin: amountSchema.parse(payload.margin),
+        leverage: leverageSchema.parse(payload.leverage)
+    };
+    const encryptedBody = await encryptPayload(safePayload);
     const res = await apiClient.post<{ code: number; result: ContractPosition }>(
         '/api/trade/appTradePositions/create',
         encryptedBody
@@ -89,6 +103,11 @@ export async function getContractPositionsApi(params = {}): Promise<ContractPosi
 
 /* ── 修改止盈止损 ── */
 export async function updateStopLossApi(payload: { id: string; stopLoss: number; stopProfit: number }): Promise<void> {
-    const encryptedBody = await encryptPayload(payload);
+    const safePayload = {
+        id: z.string().min(1).parse(payload.id),
+        stopLoss: amountSchema.optional().parse(payload.stopLoss || undefined) || 0,
+        stopProfit: amountSchema.optional().parse(payload.stopProfit || undefined) || 0
+    };
+    const encryptedBody = await encryptPayload(safePayload);
     await apiClient.post('/api/trade/appTradePositions/updateStopLoss', encryptedBody);
 }

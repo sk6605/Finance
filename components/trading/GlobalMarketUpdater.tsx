@@ -14,13 +14,19 @@ const SYMBOL_LIST = ['XAUUSD', 'XAGUSD', 'XPTUSD', 'XPDUSD', 'XNIUSD', 'XCUUSD']
  * 实现真正的 全局动态更新。
  */
 export default function GlobalMarketUpdater() {
-    const { setTickers, updateTicker } = useMarketStore();
+    const { setTickers, updateTicker, setLoading } = useMarketStore();
 
     useEffect(() => {
         // 1. 初始化拉取：为了页面直出时不空载
         getMarketTickersApi()
-            .then(tickers => setTickers(tickers))
-            .catch(err => console.error('[GlobalMarketUpdater] API fetch error:', err));
+            .then(tickers => {
+                setTickers(tickers);
+                setLoading(false);
+            })
+            .catch(err => {
+                console.error('[GlobalMarketUpdater] API fetch error:', err);
+                setLoading(false);
+            });
 
         // 2. 连接 WebSocket
         priceWS.connect();
