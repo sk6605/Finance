@@ -34,7 +34,7 @@ export const codeSchema = z
 
 // 4. 交易金额校验（必须为大于 0 的有效数字）
 export const amountSchema = z
-    .number({ required_error: 'Amount is required', invalid_type_error: 'Amount must be a number' })
+    .number()
     .positive('Amount must be greater than 0');
 
 // 5. 杠杆倍数校验
@@ -56,7 +56,7 @@ export const cryptoAddressSchema = z
 // 取第一个 Zod 错误信息
 export function getZodError(error: unknown): string {
     if (error instanceof z.ZodError) {
-        return error.errors[0]?.message || 'Validation failed';
+        return error.issues[0]?.message || 'Validation failed';
     }
     return error instanceof Error ? error.message : 'Unknown error';
 }
